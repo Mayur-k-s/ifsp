@@ -24,5 +24,5 @@ def handle_connect():
     emit('location_update', {'lat': 12.7509, 'lng': 80.1974})
 
 if __name__ == '__main__':
-    # Running on your specific IP and port 5000
-    socketio.run(app, host='10.54.14.19', port=5000, debug=True)
+    # Using 0.0.0.0 allows it to work on your current network IP automatically
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True)

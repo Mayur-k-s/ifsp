@@ -83,26 +83,6 @@
             transform: scale(0.98);
         }
 
-        /* Satellite Toggle */
-        .map-style-toggle {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 10;
-            cursor: pointer;
-            font-weight: 600;
-            color: #333;
-            border: 1px solid #eee;
-        }
-
-        .map-style-toggle:hover {
-            background: #f8f9fa;
-        }
-
         .stats {
             margin-top: 15px;
             padding-top: 15px;
@@ -153,15 +133,15 @@
         </div>
     </div>
 
-    <button class="map-style-toggle" onclick="toggleMapStyle()">🛰️ Satellite View</button>
     <div id="loading">Calculating...</div>
-
     <div id="map"></div>
 
     <script>
-        mapboxgl.accessToken = 'map_key paste here';
+        mapboxgl.accessToken = 'enter_your_mapbox_token_here';
 
-        // FINAL DATA - Verified by User
+        // --- EDITOR MODE: Set to TRUE to show draggable markers for every point ---
+        const isEditorMode = false;
+
         const campusData = {
             "Hostels (Gents)": [
                 {
@@ -174,15 +154,15 @@
                 {
                     "name": "Gents Hostel 2",
                     "coords": [
-                        80.19849811503701,
-                        12.751565529503651
+                        80.19855212335739,
+                        12.751439823124983
                     ]
                 },
                 {
                     "name": "Gents Hostel 3",
                     "coords": [
-                        80.19958412738316,
-                        12.75070473039412
+                        80.19959938698872,
+                        12.750646390049326
                     ]
                 },
                 {
@@ -195,29 +175,29 @@
                 {
                     "name": "Gents Hostel 5",
                     "coords": [
-                        80.19920040493804,
-                        12.750068491242246
+                        80.19923189195936,
+                        12.750131870676498
                     ]
                 },
                 {
                     "name": "Gents Hostel 6",
                     "coords": [
-                        80.2002368483711,
-                        12.750438753967856
+                        80.199932,
+                        12.750375
                     ]
                 },
                 {
                     "name": "Gents Hostel 7",
                     "coords": [
-                        80.1993709393007,
-                        12.749595240261996
+                        80.1993859469195,
+                        12.749548862807984
                     ]
                 },
                 {
                     "name": "Gents Hostel 8",
                     "coords": [
-                        80.19915654800656,
-                        12.749058240350863
+                        80.19940029875698,
+                        12.749181199061425
                     ]
                 },
                 {
@@ -228,30 +208,54 @@
                     ]
                 },
                 {
-                    "name": "International Hostel (Nilavan)",
+                    "name": "Nilavan",
                     "coords": [
                         80.19976461047054,
                         12.75115587644379
                     ]
                 }
             ],
+            "Hostels (Ladies)": [
+                {
+                    "name": "Girls Hostel",
+                    "coords": [80.195808, 12.753412]
+                }
+            ],
             "Facilities & Spots": [
+                {
+                    "name": "UG Mess",
+                    "coords": [
+                        80.20011558964433,
+                        12.749792102921859
+                    ]
+                },
+                {
+                    "name": "Main Canteen",
+                    "coords": [80.194589, 12.753279]
+                },
+                {
+                    "name": "PG Mess",
+                    "coords": [
+                        80.19850468978456,
+                        12.750929207756897
+                    ]
+                },
                 {
                     "name": "Cricket Ground",
                     "coords": [
-                        80.19111695300631,
-                        12.752543351342396
+                        80.189796,
+                        12.752040
                     ]
                 },
                 {
                     "name": "Laundry",
                     "coords": [
-                        80.1993255212904,
-                        12.751024906309851
+                        80.19933772755172,
+                        12.750989845474209
                     ]
                 },
                 {
-                    "name": "SNU Building",
+                    "name": "SNU ",
                     "coords": [
                         80.19245232819594,
                         12.752139172154216
@@ -267,22 +271,22 @@
                 {
                     "name": "Laugh and Joy",
                     "coords": [
-                        80.19699557944301,
-                        12.749268803147842
+                        80.193611,
+                        12.750393
                     ]
                 },
                 {
                     "name": "PR",
                     "coords": [
-                        80.19291742111619,
-                        12.750769056981198
+                        80.196981,
+                        12.749159
                     ]
                 },
                 {
                     "name": "Aswins",
                     "coords": [
-                        80.19798198888623,
-                        12.753204075447925
+                        80.196678,
+                        12.753506
                     ]
                 },
                 {
@@ -295,6 +299,10 @@
             ],
             "Departments": [
                 {
+                    "name": "School of Law",
+                    "coords": [80.1970, 12.7510]
+                },
+                {
                     "name": "CSE Block",
                     "coords": [
                         80.19726,
@@ -302,14 +310,14 @@
                     ]
                 },
                 {
-                    "name": "IT & CDC Block",
+                    "name": "IT Block",
                     "coords": [
                         80.19682,
                         12.75143
                     ]
                 },
                 {
-                    "name": "ECE & EEE Block",
+                    "name": "ECE Block",
                     "coords": [
                         80.19618,
                         12.75072
@@ -330,7 +338,7 @@
                     ]
                 },
                 {
-                    "name": "Civil Engineering",
+                    "name": "EEE and Civil Engineering",
                     "coords": [
                         80.19622,
                         12.74929
@@ -344,7 +352,7 @@
                     ]
                 },
                 {
-                    "name": "English & Maths Block",
+                    "name": "English & Maths (First Year)Block",
                     "coords": [
                         80.19705,
                         12.75199
@@ -360,10 +368,18 @@
             ],
             "Landmarks": [
                 {
+                    "name": "Main Audi",
+                    "coords": [80.200139, 12.752987]
+                },
+                {
+                    "name": "Temple",
+                    "coords": [80.202989, 12.752176]
+                },
+                {
                     "name": "SSN Main Gate",
                     "coords": [
-                        80.20344,
-                        12.75172
+                        80.20348345898651,
+                        12.751720539998672
                     ]
                 },
                 {
@@ -411,15 +427,32 @@
             style: currentStyle,
             center: [80.1965, 12.7515],
             zoom: 17,
-            pitch: 45, // Reverted to previous tilt
+            pitch: 45,
             bearing: -10
         });
 
         let activeDestMarker = null;
 
         map.on('load', () => {
-            // Hide default points
-            if (map.getLayer('poi-label')) map.setLayoutProperty('poi-label', 'visibility', 'none');
+            // 1. Mapbox Standard Config (The correct way to hide POIs in newer styles)
+            try {
+                if (map.style && map.style.stylesheet) {
+                    map.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+                    map.setConfigProperty('basemap', 'showTransitLabels', false);
+                    map.setConfigProperty('basemap', 'showPlaceLabels', false);
+                }
+            } catch (e) { console.log('Config prop error', e); }
+
+            // 2. Fallback: Manual Layer Hiding
+            const layers = map.getStyle().layers;
+            for (const layer of layers) {
+                if (layer.id.includes('poi') || layer.id.includes('label')) {
+                    // Only hide if it's NOT our custom layer
+                    if (!layer.id.includes('ssn-')) {
+                        try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch (e) { }
+                    }
+                }
+            }
 
             map.addSource('mapbox-dem', { 'type': 'raster-dem', 'url': 'mapbox://mapbox.mapbox-terrain-dem-v1' });
             map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
@@ -427,7 +460,51 @@
             addCustomCampusLayer();
         });
 
+        // --- EDITOR MODE LOG PANEL ---
+        if (isEditorMode) {
+            const logDiv = document.createElement('div');
+            logDiv.id = 'coord-log';
+            logDiv.style.cssText = 'position:fixed; bottom:10px; right:10px; width:300px; height:200px; background:white; border:2px solid #333; z-index:9999; padding:10px; overflow:auto; font-family:monospace; font-size:12px;';
+            logDiv.innerHTML = '<strong>📍 COORDINATES LOG (Copy from here)</strong><br><hr>';
+            document.body.appendChild(logDiv);
+        }
+
         function addCustomCampusLayer() {
+            // Cleanup existing layers
+            if (map.getSource('ssn-places')) {
+                if (map.getLayer('ssn-custom-labels')) map.removeLayer('ssn-custom-labels');
+                if (map.getLayer('ssn-custom-dots')) map.removeLayer('ssn-custom-dots');
+                map.removeSource('ssn-places');
+            }
+
+            if (isEditorMode) {
+                console.log("🔧 EDITOR MODE ACTIVE: Draggable Markers Enabled");
+                for (const cat in campusData) {
+                    campusData[cat].forEach(place => {
+                        const marker = new mapboxgl.Marker({ draggable: true, color: '#FF0000', scale: 0.8 })
+                            .setLngLat(place.coords)
+                            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(place.name))
+                            .addTo(map);
+
+                        // Show name on hover title
+                        marker.getElement().title = place.name;
+
+                        marker.on('dragend', () => {
+                            const lngLat = marker.getLngLat();
+                            const logEntry = `<strong>"${place.name}"</strong>: [${lngLat.lng.toFixed(6)}, ${lngLat.lat.toFixed(6)}]<br>`;
+
+                            const logEl = document.getElementById('coord-log');
+                            if (logEl) {
+                                logEl.innerHTML += logEntry;
+                                logEl.scrollTop = logEl.scrollHeight; // Auto-scroll to bottom
+                            }
+                        });
+                    });
+                }
+                return; // Stop here, do not add static layers
+            }
+
+            // Normal Mode
             const features = [];
             for (const cat in campusData) {
                 campusData[cat].forEach(place => {
@@ -437,12 +514,6 @@
                         properties: { title: place.name }
                     });
                 });
-            }
-
-            if (map.getSource('ssn-places')) {
-                map.removeLayer('ssn-custom-labels');
-                map.removeLayer('ssn-custom-dots');
-                map.removeSource('ssn-places');
             }
 
             map.addSource('ssn-places', {
@@ -492,7 +563,13 @@
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition((pos) => {
                 userMarker.setLngLat([pos.coords.longitude, pos.coords.latitude]);
-            }, null, { enableHighAccuracy: true });
+            }, (err) => {
+                console.warn("Location Error:", err);
+                // Common error on HTTP + IP address usage
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.protocol !== 'https:') {
+                    alert("⚠️ Location Access Failed!\n\nBrowsers block GPS on 'http://IP_ADDRESS'.\n\n👉 Please open: http://localhost:5001");
+                }
+            }, { enableHighAccuracy: true });
         }
 
         // 6. Routing
@@ -531,7 +608,7 @@
                 const json = await req.json();
 
                 if (!json.routes || json.routes.length === 0) {
-                    alert("No path found. Try satellite view.");
+                    alert("No path found.");
                     return;
                 }
 
@@ -578,16 +655,6 @@
                     paint: { 'line-color': '#2ecc71', 'line-width': 4, 'line-dasharray': [2, 2] }
                 });
             }
-        }
-
-        function toggleMapStyle() {
-            currentStyle = currentStyle.includes('satellite') ? 'mapbox://styles/mapbox/standard' : 'mapbox://styles/mapbox/satellite-v9';
-            map.setStyle(currentStyle);
-            map.once('style.load', () => {
-                // Re-hide default points
-                if (map.getLayer('poi-label')) map.setLayoutProperty('poi-label', 'visibility', 'none');
-                addCustomCampusLayer();
-            });
         }
     </script>
 </body>

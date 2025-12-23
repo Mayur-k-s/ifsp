@@ -54,7 +54,7 @@ IFP/
    python app.py
    ```
 
-3. **Open:** Navigate to `http://localhost:5000` (or your IP) in a browser.
+3. **Open:** Navigate to `http://localhost:5001` (or your IP) in a browser.
 
 ## 📡 API Endpoints
 
