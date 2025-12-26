@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>SSN Campus 3D Navigator - Final</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Modern Control Panel */
+        .nav-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            border-radius: 16px;
+            z-index: 10;
+            width: 320px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        h3 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        label {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        select,
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        button#route-btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        button#route-btn:active {
+            transform: scale(0.98);
+        }
+
+        .stats {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .stat-box strong {
+            display: block;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        #loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            z-index: 20;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="nav-panel">
+        <h3>📍 SSN Navigator</h3>
+
+        <label>Where to?</label>
+        <select id="dest-nodes">
+            <!-- populated by JS -->
+        </select>
+
+        <button id="route-btn" onclick="calculateCampusRoute()">Navigate Now ➔</button>
+
+        <div class="stats">
+            <div class="stat-box">Dist: <strong id="dist-txt">0 m</strong></div>
+            <div class="stat-box">Time: <strong id="eta-txt">0 min</strong></div>
+        </div>
+    </div>
+
+    <div id="loading">Calculating...</div>
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWF5dXJrcyIsImEiOiJjbWpoZmF5cTQwcTZzM2RxdmZkeGc4aXRvIn0.w53nwvcH9lLU_bx9aoiVZw';
+
+        // --- EDITOR MODE: Set to TRUE to show draggable markers for every point ---
+        const isEditorMode = false;
+
+        const campusData = {
+            "Hostels (Gents)": [
+                {
+                    "name": "Gents Hostel 1",
+                    "coords": [
+                        80.19930856138353,
+                        12.751417788270132
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 2",
+                    "coords": [
+                        80.19855212335739,
+                        12.751439823124983
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 3",
+                    "coords": [
+                        80.19959938698872,
+                        12.750646390049326
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 4",
+                    "coords": [
+                        80.19893369969651,
+                        12.75057449209018
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 5",
+                    "coords": [
+                        80.19923189195936,
+                        12.750131870676498
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 6",
+                    "coords": [
+                        80.199932,
+                        12.750375
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 7",
+                    "coords": [
+                        80.1993859469195,
+                        12.749548862807984
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 8",
+                    "coords": [
+                        80.19940029875698,
+                        12.749181199061425
+                    ]
+                },
+                {
+                    "name": "Gents Hostel 9",
+                    "coords": [
+                        80.19894895238895,
+                        12.749035129123968
+                    ]
+                },
+                {
+                    "name": "Nilavan",
+                    "coords": [
+                        80.19976461047054,
+                        12.75115587644379
+                    ]
+                }
+            ],
+            "Hostels (Ladies)": [
+                {
+                    "name": "Girls Hostel",
+                    "coords": [80.195808, 12.753412]
+                }
+            ],
+            "Facilities & Spots": [
+                {
+                    "name": "UG Mess",
+                    "coords": [
+                        80.20011558964433,
+                        12.749792102921859
+                    ]
+                },
+                {
+                    "name": "Main Canteen",
+                    "coords": [80.194589, 12.753279]
+                },
+                {
+                    "name": "PG Mess",
+                    "coords": [
+                        80.19850468978456,
+                        12.750929207756897
+                    ]
+                },
+                {
+                    "name": "Cricket Ground",
+                    "coords": [
+                        80.189796,
+                        12.752040
+                    ]
+                },
+                {
+                    "name": "Laundry",
+                    "coords": [
+                        80.19933772755172,
+                        12.750989845474209
+                    ]
+                },
+                {
+                    "name": "SNU ",
+                    "coords": [
+                        80.19245232819594,
+                        12.752139172154216
+                    ]
+                },
+                {
+                    "name": "Snow Cube",
+                    "coords": [
+                        80.19513777391933,
+                        12.751398182426556
+                    ]
+                },
+                {
+                    "name": "Laugh and Joy",
+                    "coords": [
+                        80.193611,
+                        12.750393
+                    ]
+                },
+                {
+                    "name": "PR",
+                    "coords": [
+                        80.196981,
+                        12.749159
+                    ]
+                },
+                {
+                    "name": "Aswins",
+                    "coords": [
+                        80.196678,
+                        12.753506
+                    ]
+                },
+                {
+                    "name": "Rishab",
+                    "coords": [
+                        80.19514432456987,
+                        12.75129843323191
+                    ]
+                }
+            ],
+            "Departments": [
+                {
+                    "name": "School of Law",
+                    "coords": [80.1970, 12.7510]
+                },
+                {
+                    "name": "CSE Block",
+                    "coords": [
+                        80.19726,
+                        12.75143
+                    ]
+                },
+                {
+                    "name": "IT Block",
+                    "coords": [
+                        80.19682,
+                        12.75143
+                    ]
+                },
+                {
+                    "name": "ECE Block",
+                    "coords": [
+                        80.19618,
+                        12.75072
+                    ]
+                },
+                {
+                    "name": "Mechanical Block",
+                    "coords": [
+                        80.19433,
+                        12.75178
+                    ]
+                },
+                {
+                    "name": "BME & Chemical Block",
+                    "coords": [
+                        80.19761,
+                        12.74929
+                    ]
+                },
+                {
+                    "name": "EEE and Civil Engineering",
+                    "coords": [
+                        80.19622,
+                        12.74929
+                    ]
+                },
+                {
+                    "name": "School of Management",
+                    "coords": [
+                        80.19904,
+                        12.75295
+                    ]
+                },
+                {
+                    "name": "English & Maths (First Year)Block",
+                    "coords": [
+                        80.19705,
+                        12.75199
+                    ]
+                },
+                {
+                    "name": "Admin Block",
+                    "coords": [
+                        80.19539,
+                        12.75164
+                    ]
+                }
+            ],
+            "Landmarks": [
+                {
+                    "name": "Main Audi",
+                    "coords": [80.200139, 12.752987]
+                },
+                {
+                    "name": "Temple",
+                    "coords": [80.202989, 12.752176]
+                },
+                {
+                    "name": "SSN Main Gate",
+                    "coords": [
+                        80.20348345898651,
+                        12.751720539998672
+                    ]
+                },
+                {
+                    "name": "Central Library",
+                    "coords": [
+                        80.19637,
+                        12.75128
+                    ]
+                },
+                {
+                    "name": "Clock Tower",
+                    "coords": [
+                        80.19641,
+                        12.75273
+                    ]
+                },
+                {
+                    "name": "Sports Complex",
+                    "coords": [
+                        80.19401,
+                        12.75286
+                    ]
+                }
+            ]
+        };
+
+        // 2. Populate Dropdown
+        const select = document.getElementById('dest-nodes');
+        for (const [category, places] of Object.entries(campusData)) {
+            const group = document.createElement('optgroup');
+            group.label = category;
+            places.forEach(place => {
+                const option = document.createElement('option');
+                option.value = place.coords.join(',');
+                option.textContent = place.name;
+                group.appendChild(option);
+            });
+            select.appendChild(group);
+        }
+
+        // 3. Map Initialization
+        let currentStyle = 'mapbox://styles/mapbox/standard';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: currentStyle,
+            center: [80.1965, 12.7515],
+            zoom: 17,
+            pitch: 45,
+            bearing: -10
+        });
+
+        let activeDestMarker = null;
+
+        map.on('load', () => {
+            // 1. Mapbox Standard Config (The correct way to hide POIs in newer styles)
+            try {
+                if (map.style && map.style.stylesheet) {
+                    map.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+                    map.setConfigProperty('basemap', 'showTransitLabels', false);
+                    map.setConfigProperty('basemap', 'showPlaceLabels', false);
+                }
+            } catch (e) { console.log('Config prop error', e); }
+
+            // 2. Fallback: Manual Layer Hiding
+            const layers = map.getStyle().layers;
+            for (const layer of layers) {
+                if (layer.id.includes('poi') || layer.id.includes('label')) {
+                    // Only hide if it's NOT our custom layer
+                    if (!layer.id.includes('ssn-')) {
+                        try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch (e) { }
+                    }
+                }
+            }
+
+            map.addSource('mapbox-dem', { 'type': 'raster-dem', 'url': 'mapbox://mapbox.mapbox-terrain-dem-v1' });
+            map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+            addCustomCampusLayer();
+        });
+
+        // --- EDITOR MODE LOG PANEL ---
+        if (isEditorMode) {
+            const logDiv = document.createElement('div');
+            logDiv.id = 'coord-log';
+            logDiv.style.cssText = 'position:fixed; bottom:10px; right:10px; width:300px; height:200px; background:white; border:2px solid #333; z-index:9999; padding:10px; overflow:auto; font-family:monospace; font-size:12px;';
+            logDiv.innerHTML = '<strong>📍 COORDINATES LOG (Copy from here)</strong><br><hr>';
+            document.body.appendChild(logDiv);
+        }
+
+        function addCustomCampusLayer() {
+            // Cleanup existing layers
+            if (map.getSource('ssn-places')) {
+                if (map.getLayer('ssn-custom-labels')) map.removeLayer('ssn-custom-labels');
+                if (map.getLayer('ssn-custom-dots')) map.removeLayer('ssn-custom-dots');
+                map.removeSource('ssn-places');
+            }
+
+            if (isEditorMode) {
+                console.log("🔧 EDITOR MODE ACTIVE: Draggable Markers Enabled");
+                for (const cat in campusData) {
+                    campusData[cat].forEach(place => {
+                        const marker = new mapboxgl.Marker({ draggable: true, color: '#FF0000', scale: 0.8 })
+                            .setLngLat(place.coords)
+                            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(place.name))
+                            .addTo(map);
+
+                        // Show name on hover title
+                        marker.getElement().title = place.name;
+
+                        marker.on('dragend', () => {
+                            const lngLat = marker.getLngLat();
+                            const logEntry = `<strong>"${place.name}"</strong>: [${lngLat.lng.toFixed(6)}, ${lngLat.lat.toFixed(6)}]<br>`;
+
+                            const logEl = document.getElementById('coord-log');
+                            if (logEl) {
+                                logEl.innerHTML += logEntry;
+                                logEl.scrollTop = logEl.scrollHeight; // Auto-scroll to bottom
+                            }
+                        });
+                    });
+                }
+                return; // Stop here, do not add static layers
+            }
+
+            // Normal Mode
+            const features = [];
+            for (const cat in campusData) {
+                campusData[cat].forEach(place => {
+                    features.push({
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: place.coords },
+                        properties: { title: place.name }
+                    });
+                });
+            }
+
+            map.addSource('ssn-places', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: features }
+            });
+
+            // 4a. Text Labels (White Text with Blue Halo)
+            map.addLayer({
+                'id': 'ssn-custom-labels',
+                'type': 'symbol',
+                'source': 'ssn-places',
+                'layout': {
+                    'text-field': ['get', 'title'],
+                    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                    'text-offset': [0, 1.0],
+                    'text-anchor': 'top',
+                    'text-size': 12,
+                    'text-max-width': 10
+                },
+                'paint': {
+                    'text-color': '#ffffff',
+                    'text-halo-color': '#003366',
+                    'text-halo-width': 2
+                }
+            });
+
+            // 4b. Unified Dots (SSN Blue)
+            map.addLayer({
+                'id': 'ssn-custom-dots',
+                'type': 'circle',
+                'source': 'ssn-places',
+                'paint': {
+                    'circle-radius': 6,
+                    'circle-color': '#003366',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+        }
+
+        // 5. User Location
+        const userMarker = new mapboxgl.Marker({ color: '#2ecc71', scale: 1.0 })
+            .setLngLat([80.20344, 12.75172]) // Default: Main Gate
+            .addTo(map);
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition((pos) => {
+                userMarker.setLngLat([pos.coords.longitude, pos.coords.latitude]);
+            }, (err) => {
+                console.warn("Location Error:", err);
+                // Common error on HTTP + IP address usage
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.protocol !== 'https:') {
+                    alert("⚠️ Location Access Failed!\n\nBrowsers block GPS on 'http://IP_ADDRESS'.\n\n👉 Please open: http://localhost:5001");
+                }
+            }, { enableHighAccuracy: true });
+        }
+
+        // 6. Routing
+        async function calculateCampusRoute() {
+            // Clear previous dest marker
+            if (activeDestMarker) activeDestMarker.remove();
+
+            const destValue = document.getElementById('dest-nodes').value;
+            const [destLng, destLat] = destValue.split(',').map(Number);
+            const startCoords = userMarker.getLngLat().toArray().join(',');
+
+            // Feature: Destination IS still draggable just in case
+            activeDestMarker = new mapboxgl.Marker({ draggable: true, color: '#e74c3c' })
+                .setLngLat([destLng, destLat])
+                .addTo(map);
+
+            activeDestMarker.on('dragend', async () => {
+                const newLngLat = activeDestMarker.getLngLat();
+                await fetchRoute(startCoords, `${newLngLat.lng},${newLngLat.lat}`);
+            });
+
+            await fetchRoute(startCoords, `${destLng},${destLat}`);
+
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend(userMarker.getLngLat());
+            bounds.extend([destLng, destLat]);
+            map.fitBounds(bounds, { padding: 80, pitch: 60 });
+        }
+
+        async function fetchRoute(start, end) {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            try {
+                const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start};${end}?geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+                const req = await fetch(url);
+                const json = await req.json();
+
+                if (!json.routes || json.routes.length === 0) {
+                    alert("No path found.");
+                    return;
+                }
+
+                const route = json.routes[0];
+                document.getElementById('dist-txt').innerText = Math.round(route.distance) + " m";
+                document.getElementById('eta-txt').innerText = Math.round(route.duration / 60) + " min";
+
+                drawRoute(route.geometry);
+
+                // Draw Off-Road Connection Line (Green Dashed)
+                drawConnectionLine(userMarker.getLngLat().toArray(), route.geometry.coordinates[0]);
+
+            } catch (e) { console.error(e); }
+            finally { loading.style.display = 'none'; }
+        }
+
+        function drawRoute(geojson) {
+            if (map.getSource('route')) {
+                map.getSource('route').setData(geojson);
+            } else {
+                map.addLayer({
+                    id: 'route', type: 'line',
+                    source: { type: 'geojson', data: { type: 'Feature', geometry: geojson } },
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#ff9f43', 'line-width': 6, 'line-opacity': 0.9 }
+                });
+                map.addLayer({
+                    id: 'route-casing', type: 'line',
+                    source: 'route', beforeId: 'route',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#000', 'line-width': 9 }
+                });
+            }
+        }
+
+        function drawConnectionLine(from, to) {
+            const geojson = { type: 'Feature', geometry: { type: 'LineString', coordinates: [from, to] } };
+            if (map.getSource('connector-line')) {
+                map.getSource('connector-line').setData(geojson);
+            } else {
+                map.addSource('connector-line', { type: 'geojson', data: geojson });
+                map.addLayer({
+                    id: 'connector-line-dashed', type: 'line', source: 'connector-line',
+                    paint: { 'line-color': '#2ecc71', 'line-width': 4, 'line-dasharray': [2, 2] }
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>
