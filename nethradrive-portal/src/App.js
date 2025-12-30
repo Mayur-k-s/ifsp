@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 // Firebase v9 Modular Imports [cite: 103]
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, query, where, serverTimestamp } from "firebase/firestore"; // Added getDoc
+import { getFirestore, collection, doc, setDoc, addDoc, getDoc, deleteDoc, updateDoc, onSnapshot, query, where, serverTimestamp } from "firebase/firestore"; // Added deleteDoc, updateDoc
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 // Mapbox Integration [cite: 74]
 import mapboxgl from 'mapbox-gl';
@@ -35,11 +35,15 @@ function App() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [profile, setProfile] = useState({ name: "", relation: "", phone: "", address: "", work: "" });
+
+  // [NEW] Multiple Profiles State
+  const [profiles, setProfiles] = useState([]);
+  const [activeProfile, setActiveProfile] = useState(null); // Entire doc object: { id, ...data }
 
   // Known Persons States [cite: 131, 248]
   const [newPerson, setNewPerson] = useState({ name: "", relation: "", phone: "", address: "" });
   const [imageFile, setImageFile] = useState(null);
+  const [editingContactId, setEditingContactId] = useState(null); // [NEW] Track which contact is being edited
 
   // Map States [cite: 74, 323]
   const mapContainer = useRef(null);
@@ -60,30 +64,60 @@ function App() {
   const [currentView, setCurrentView] = useState('map'); // 'map' or 'persons'
   const [knownPersons, setKnownPersons] = useState([]);
 
+  // [NEW] Listener Refs for Cleanup
+  const profilesUnsub = useRef(null);
+  const knownPersonsUnsub = useRef(null);
+
   // Monitor Login Status
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // 1. Cleanup previous listeners on ANY auth change (login OR logout)
+      if (profilesUnsub.current) { profilesUnsub.current(); profilesUnsub.current = null; }
+      if (knownPersonsUnsub.current) { knownPersonsUnsub.current(); knownPersonsUnsub.current = null; }
+
       setUserLocation(null); // Reset on logout
       setUser(currentUser);
 
       // [NEW] Fetch Data if user logs in
       if (currentUser) {
         try {
-          const docRef = doc(db, "Caretakers", currentUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile(docSnap.data());
-          }
-          fetchKnownPersons(currentUser.uid); // Fetch trusted persons list
+          // Listen to Profiles Sub-collection
+          const profilesQuery = query(collection(db, "Caretakers", currentUser.uid, "Profiles"));
+          // Store unsubscribe in ref
+          profilesUnsub.current = onSnapshot(profilesQuery, (snapshot) => {
+            const loadedProfiles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            setProfiles(loadedProfiles);
+
+            // Set default active profile if none selected or if list changed significantly
+            if (loadedProfiles.length > 0) {
+              // If we don't have an active profile, or the active one was deleted, pick the first one
+              setActiveProfile(prev => {
+                const exists = loadedProfiles.find(p => p.id === prev?.id);
+                return exists || loadedProfiles[0];
+              });
+            } else {
+              setActiveProfile(null);
+            }
+          });
+
+          // Fetch trusted persons list and store unsub ref
+          if (knownPersonsUnsub.current) knownPersonsUnsub.current(); // Safety check
+          knownPersonsUnsub.current = fetchKnownPersons(currentUser.uid);
         } catch (e) {
           console.error("Error fetching data:", e);
         }
       } else {
-        setProfile({ name: "", relation: "", phone: "", address: "", work: "" });
+        setProfiles([]);
+        setActiveProfile(null);
         setKnownPersons([]);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Final cleanup on unmount
+      if (profilesUnsub.current) profilesUnsub.current();
+      if (knownPersonsUnsub.current) knownPersonsUnsub.current();
+    };
   }, []);
 
   // Listen for Real-Time SOS Alerts [cite: 133, 249, 279]
@@ -433,61 +467,126 @@ function App() {
   };
 
   // Database Handlers [cite: 103, 131]
-  const saveCaretakerProfile = async () => {
+  // Database Handlers [cite: 103, 131]
+
+  // [NEW] Profile Handlers
+  const handleAddProfile = async () => {
     if (!user) return;
-    await setDoc(doc(db, "Caretakers", user.uid), {
-      ...profile,
-      email: user.email,
-      updatedAt: serverTimestamp()
-    });
-    alert("Caretaker Profile Saved!");
+    const name = prompt("Enter Name for new Profile:");
+    if (!name) return;
+
+    try {
+      await addDoc(collection(db, "Caretakers", user.uid, "Profiles"), {
+        name: name,
+        relation: "",
+        phone: "",
+        createdAt: serverTimestamp()
+      });
+    } catch (e) { console.error(e); alert("Error adding profile"); }
   };
 
-  const addKnownPerson = async () => {
-    console.log("Starting save process...");
+  const handleDeleteProfile = async (profileId, e) => {
+    e.stopPropagation(); // Prevent selecting the profile when clicking delete
+    if (!window.confirm("Are you sure you want to delete this profile?")) return;
+    try {
+      await deleteDoc(doc(db, "Caretakers", user.uid, "Profiles", profileId));
+      // Active profile switch handled by onSnapshot logic
+    } catch (e) { console.error(e); alert("Error deleting profile"); }
+  };
 
+  const handleUpdateProfile = async () => {
+    if (!user || !activeProfile) return;
+    try {
+      await updateDoc(doc(db, "Caretakers", user.uid, "Profiles", activeProfile.id), {
+        name: activeProfile.name || "",
+        relation: activeProfile.relation || "",
+        phone: activeProfile.phone || "",
+        updatedAt: serverTimestamp()
+      });
+      alert("Profile Updated!");
+    } catch (e) { console.error(e); alert("Failed to update profile"); }
+  };
+
+  // [NEW] Trusted Person Actions
+  const handleEditKnownPerson = (person) => {
+    setNewPerson({
+      name: person.name,
+      relation: person.relation,
+      phone: person.phone || "",
+      address: person.address || ""
+    });
+    // Note: We don't preload imageFile because it's a file input, user only uploads if changing it
+    setEditingContactId(person.id);
+    setShowProfile(true); // Open sidebar
+  };
+
+  const handleCancelEdit = () => {
+    setNewPerson({ name: "", relation: "", phone: "", address: "" });
+    setImageFile(null);
+    setEditingContactId(null);
+  };
+
+  const handleDeleteKnownPerson = async (id, e) => {
+    e.stopPropagation(); // Stop bubbling
+    console.log("Delete clicked for:", id);
+
+    if (!window.confirm("Permanently delete this trusted contact?")) return;
+
+    try {
+      console.log("Attempting deleteDoc for:", id);
+      await deleteDoc(doc(db, "KnownPersons", id));
+      console.log("Delete success");
+      alert("Contact Deleted!");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Error deleting contact: " + err.message);
+    }
+  };
+
+  const saveKnownPerson = async () => {
     if (!newPerson.name || !newPerson.relation) {
       return alert("Please fill in Name and Relation!");
     }
 
-    // Check photo
-    if (!imageFile) {
+    // Check photo only if ADDING a new person. For editing, it's optional.
+    if (!editingContactId && !imageFile) {
       return alert("Please upload a identification photo!");
     }
 
     try {
-      console.log("Uploading image...");
+      let downloadURL = null;
 
-      // Sanitized simple filename to avoid path issues
-      const filename = `kp_${Date.now()}_${user.uid.slice(0, 5)}`;
-      const storageRef = ref(storage, `known_persons/${filename}`);
-
-      let downloadURL = "https://via.placeholder.com/150"; // Fallback URL
-
-      try {
+      // Upload new image if provided
+      if (imageFile) {
+        console.log("Uploading image...");
+        const filename = `kp_${Date.now()}_${user.uid.slice(0, 5)}`;
+        const storageRef = ref(storage, `known_persons/${filename}`);
         const snapshot = await uploadBytes(storageRef, imageFile);
         downloadURL = await getDownloadURL(snapshot.ref);
-        console.log("Image uploaded. Saving to DB...");
-      } catch (uploadError) {
-        console.error("Upload failed", uploadError);
-        const proceed = window.confirm(`Image upload failed: ${uploadError.message}. Save with default image?`);
-        if (!proceed) {
-          return;
-        }
       }
 
-      await addDoc(collection(db, "KnownPersons"), {
-        ...newPerson,
-        photoUrl: downloadURL,
-        addedBy: user.uid,
-        createdAt: serverTimestamp(),
-        visitCount: 0
-      });
+      if (editingContactId) {
+        // UPDATE EXISTING
+        const updateData = { ...newPerson, updatedAt: serverTimestamp() };
+        if (downloadURL) updateData.photoUrl = downloadURL; // Only update photo if new one uploaded
 
-      alert("Contact Saved Successfully!");
-      fetchKnownPersons(user.uid);
-      setNewPerson({ name: "", relation: "", phone: "", address: "" });
-      setImageFile(null);
+        await updateDoc(doc(db, "KnownPersons", editingContactId), updateData);
+        alert("Contact Updated Successfully!");
+      } else {
+        // CREATE NEW
+        await addDoc(collection(db, "KnownPersons"), {
+          ...newPerson,
+          photoUrl: downloadURL || "https://via.placeholder.com/150",
+          addedBy: user.uid,
+          createdAt: serverTimestamp(),
+          visitCount: 0
+        });
+        alert("Contact Saved Successfully!");
+      }
+
+      handleCancelEdit(); // Reset form
+      // fetchKnownPersons removed - realtime listener updates automatically
+
     } catch (error) {
       console.error("Save Error:", error);
       alert("Critical Error: " + error.message);
@@ -520,14 +619,14 @@ function App() {
     }
   };
 
-  const fetchKnownPersons = async (uid) => {
+  // Refactored to be synchronous and return the unsub function
+  const fetchKnownPersons = (uid) => {
     try {
       const q = query(collection(db, "KnownPersons"), where("addedBy", "==", uid));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      return onSnapshot(q, (snapshot) => {
         const persons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setKnownPersons(persons);
       });
-      return unsubscribe;
     } catch (e) {
       console.error("Error fetching persons:", e);
     }
@@ -564,10 +663,10 @@ function App() {
         <div style={styles.profileSection}>
           <div style={styles.profileHeader} onClick={() => setShowProfile(!showProfile)}>
             <div style={styles.avatar}>
-              {profile.name ? profile.name.charAt(0).toUpperCase() : "👤"}
+              {activeProfile?.name ? activeProfile.name.charAt(0).toUpperCase() : "👤"}
             </div>
             <div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#34495e' }}>{profile.name || "My Profile"}</div>
+              <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#34495e' }}>{activeProfile?.name || "No Profile"}</div>
               <div style={{ fontSize: '11px', color: '#95a5a6' }}>{user.email}</div>
             </div>
             <div style={{ marginLeft: 'auto', fontSize: '10px' }}>{showProfile ? '▲' : '▼'}</div>
@@ -575,18 +674,66 @@ function App() {
 
           {showProfile && (
             <div style={styles.profileAccordion}>
-              <input placeholder="Name" value={profile.name || ""} onChange={e => setProfile({ ...profile, name: e.target.value })} style={styles.inputSmall} />
-              <input placeholder="Relation" value={profile.relation || ""} onChange={e => setProfile({ ...profile, relation: e.target.value })} style={styles.inputSmall} />
-              <input placeholder="Phone" value={profile.phone || ""} onChange={e => setProfile({ ...profile, phone: e.target.value })} style={styles.inputSmall} />
-              <button onClick={saveCaretakerProfile} style={styles.btnAction}>Update Profile</button>
+              {/* [NEW] Multiple Profile List */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', overflowX: 'auto', paddingBottom: '5px' }}>
+                {profiles.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => setActiveProfile(p)}
+                    style={{
+                      position: 'relative',
+                      minWidth: '35px', height: '35px',
+                      borderRadius: '50%',
+                      background: activeProfile?.id === p.id ? '#2ecc71' : '#ddd',
+                      color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 'bold', cursor: 'pointer', border: activeProfile?.id === p.id ? '2px solid #27ae60' : 'none'
+                    }}
+                    title={p.name}
+                  >
+                    {p.name.charAt(0).toUpperCase()}
+                    {/* Delete X */}
+                    {profiles.length > 1 && (
+                      <div
+                        onClick={(e) => handleDeleteProfile(p.id, e)}
+                        style={{
+                          position: 'absolute', top: -2, right: -2, width: '12px', height: '12px',
+                          background: 'red', borderRadius: '50%', fontSize: '8px', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center'
+                        }}
+                      >✕</div>
+                    )}
+                  </div>
+                ))}
+                {/* Add Profile Button */}
+                <div onClick={handleAddProfile} style={{ ...styles.avatar, background: '#3498db', cursor: 'pointer', minWidth: '35px' }}>+</div>
+              </div>
 
-              <hr style={{ margin: '10px 0', borderTop: '1px dashed #eee' }} />
-              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '5px' }}>Add Trusted Contact</div>
+              {activeProfile && (
+                <>
+                  <input placeholder="Name" value={activeProfile.name || ""} onChange={e => setActiveProfile({ ...activeProfile, name: e.target.value })} style={styles.inputSmall} />
+                  <input placeholder="Relation" value={activeProfile.relation || ""} onChange={e => setActiveProfile({ ...activeProfile, relation: e.target.value })} style={styles.inputSmall} />
+                  <input placeholder="Phone" value={activeProfile.phone || ""} onChange={e => setActiveProfile({ ...activeProfile, phone: e.target.value })} style={styles.inputSmall} />
+                  <button onClick={handleUpdateProfile} style={styles.btnAction}>Update Profile</button>
+                  <hr style={{ margin: '10px 0', borderTop: '1px dashed #eee' }} />
+                </>
+              )}
+
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '5px' }}>
+                {editingContactId ? "Edit Contact" : "Add Trusted Contact"}
+              </div>
               <input placeholder="Name" value={newPerson.name || ""} onChange={e => setNewPerson({ ...newPerson, name: e.target.value })} style={styles.inputSmall} />
               <input placeholder="Relation" value={newPerson.relation || ""} onChange={e => setNewPerson({ ...newPerson, relation: e.target.value })} style={styles.inputSmall} />
               <input placeholder="Phone" value={newPerson.phone || ""} onChange={e => setNewPerson({ ...newPerson, phone: e.target.value })} style={styles.inputSmall} />
               <input type="file" onChange={e => setImageFile(e.target.files[0])} style={styles.inputSmall} />
-              <button onClick={addKnownPerson} style={styles.btnAction}>Save Contact</button>
+
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <button onClick={saveKnownPerson} style={styles.btnAction}>
+                  {editingContactId ? "Update" : "Save"}
+                </button>
+                {editingContactId && (
+                  <button onClick={handleCancelEdit} style={{ ...styles.btnAction, background: '#95a5a6' }}>Cancel</button>
+                )}
+              </div>
 
               <button onClick={() => signOut(auth)} style={{ ...styles.btnAction, background: '#e74c3c', marginTop: '10px' }}>Logout</button>
             </div>
@@ -657,7 +804,25 @@ function App() {
                   <div key={p.id} style={styles.personCard}>
                     <img src={p.photoUrl} alt={p.name} style={styles.personImg} />
                     <div style={{ padding: '15px' }}>
-                      <h3 style={{ margin: '0 0 5px 0' }}>{p.name}</h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <h3 style={{ margin: '0 0 5px 0' }}>{p.name}</h3>
+                        {/* [NEW] Action Buttons */}
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                          <button
+                            onClick={() => handleEditKnownPerson(p)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}
+                            title="Edit"
+                          >✎</button>
+                          <button
+                            onClick={(e) => {
+                              console.log("JSX Click Triggered for ID:", p.id);
+                              handleDeleteKnownPerson(p.id, e);
+                            }}
+                            style={{ background: '#e74c3c', color: 'white', border: 'none', cursor: 'pointer', fontSize: '12px', padding: '5px 10px', borderRadius: '4px' }}
+                            title="Delete"
+                          >DELETE</button>
+                        </div>
+                      </div>
                       <div style={{ fontSize: '13px', color: '#7f8c8d' }}>{p.relation} • {p.phone}</div>
                       <div style={styles.visitBadge}>Total Visits: {p.visitCount || 0}</div>
                     </div>

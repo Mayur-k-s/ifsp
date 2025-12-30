@@ -1,70 +1,90 @@
-# Getting Started with Create React App
+# 🛡️ NethraDrive Caretaker Portal
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The **NethraDrive Caretaker Portal** is a comprehensive web dashboard designed to monitor and assist users of the NethraDrive smart wheelchair system. It provides real-time location tracking, emergency alerts, and management of trusted contacts, ensuring safety and connectivity for the user.
 
-## Available Scripts
+## 🚀 Key Features
 
-In the project directory, you can run:
+### 📍 Real-Time GPS Tracking & Navigation
+- **Live Tracking**: Visualize the wheelchair's location in real-time on a 3D campus map (SSN College of Engineering).
+- **3D Visualization**: Utilizes Mapbox GL JS for immersive 3D building views and terrain.
+- **Campus Route Planning**: Calculate walking paths between campus landmarks (Hostels, Departments, Canteens).
+- **User vs. Vehicle**: Distinguishes between the caretaker's location (green dot) and the wheelchair's location (red dot).
 
-### `npm start`
+### 🚨 Safety & Alerts
+- **SOS Emergency Alerts**: listen for critical SOS signals from the hardware unit and instantly fly the map to the emergency location.
+- **Geofencing Capable**: (Architecture supports future geofence alerts).
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 👥 Trusted Persons Management
+- **CRUD Operations**: Add, Edit, and Delete trusted contact details.
+- **Photo Identification**: Upload and manage photos for contacts (stored in Firebase Storage).
+- **Database**: Real-time synchronization with Firebase Firestore.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 👤 Multi-Profile Support
+- **Profile Switching**: Manage multiple patient/user profiles under a single caretaker account.
+- **Role Management**: Switch active context easily via the sidebar.
 
-### `npm test`
+## 🛠️ Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Frontend Framework**: React.js (v18+)
+- **Mapping Engine**: Mapbox GL JS
+- **Backend & Database**: Firebase (Auth, Firestore, Storage)
+- **Real-Time Comm**: Socket.IO-client (for GPS hardware connection)
+- **Styling**: CSS Modules / Custom CSS
 
-### `npm run build`
+## ⚙️ Setup & Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+- A Firebase project with Auth, Firestore, and Storage enabled.
+- A Mapbox access token.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Installation
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd nethradrive-portal
+   ```
 
-### `npm run eject`
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Configuration
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. **Environment Variables**:
+   Update the `firebaseConfig` object and `mapboxgl.accessToken` in `src/App.js` with your own credentials.
+   *(Note: For production, it is recommended to move these to a `.env` file)*.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Run Locally
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+1. **Start the Development Server:**
+   ```bash
+   npm start
+   ```
+   Runs the app in development mode. Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-## Learn More
+2. **Connect to GPS Module (Optional):**
+   Ensure the Python GPS module (Socket.IO server) is running on `http://localhost:5001`. The portal attempts to connect to this address automatically.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📂 Project Structure
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```
+nethradrive-portal/
+├── src/
+│   ├── App.js           # Main Logic (Map, Auth, UI)
+│   ├── campusData.js    # Static coordinate data for campus landmarks
+│   ├── index.css        # Global Styles
+│   └── ...
+├── public/              # Static assets
+└── package.json         # Dependencies
+```
 
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 🤝 Contributing
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
