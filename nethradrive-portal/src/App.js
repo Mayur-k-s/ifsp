@@ -28,7 +28,7 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Use your existing Mapbox token [cite: 75]
-mapboxgl.accessToken = 'pk.eyJ1IjoibWF5dXJrcyIsImEiOiJjbWpoZmF5cTQwcTZzM2RxdmZkeGc4aXRvIn0.w53nwvcH9lLU_bx9aoiVZw';
+mapboxgl.accessToken = 'enter_your_mapbox_token_here';
 
 function App() {
   // Authentication & Profile States
